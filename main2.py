@@ -13,4 +13,4 @@ results = client.search({
   "return_date": "2027-01-21"
 })
 
-print(json.dumps(results, indent=2))
+print(json.dumps(dict(results), indent=2))
