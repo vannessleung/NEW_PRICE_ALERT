@@ -2,7 +2,7 @@ name: NEW_PRICE_ALERT
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # runs daily at 9am UTC
+    - cron: "0 9 * * *"  # runs daily at 9am UTC
   push:
     branches: [main]
 jobs:
