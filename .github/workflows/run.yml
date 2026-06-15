@@ -20,7 +20,6 @@ jobs:
           pip install google-search-results
 
       - name: Run script
-        run: python main.py
         run: python main2.py
         
       - name: Send email
