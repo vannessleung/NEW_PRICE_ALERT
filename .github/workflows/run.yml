@@ -21,6 +21,7 @@ jobs:
 
       - name: Run script
         run: python main.py
+        run: python main2.py
         
       - name: Send email
         env:
