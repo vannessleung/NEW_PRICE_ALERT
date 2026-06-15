@@ -20,7 +20,7 @@ jobs:
         run: |
           pip install playwright
           playwright install chromium
-          run: pip install serpapi
+          pip install serpapi
 
       - name: Run script
         run: python main2.py
