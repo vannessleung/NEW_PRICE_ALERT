@@ -23,6 +23,8 @@ jobs:
           pip install serpapi
 
       - name: Run script
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
         run: python main2.py
         
       - name: Send email
