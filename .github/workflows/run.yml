@@ -1,0 +1,32 @@
+name: FlightPriceAlert
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # runs daily at 9am UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Run script
+        run: python main.py
+        
+      - name: Send email
+        env:
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        run: python send_email.py
