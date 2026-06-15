@@ -1,4 +1,4 @@
-name: FlightPriceAlert
+name: NEW_PRICE_ALERT
 
 on:
   schedule:
