@@ -5,7 +5,7 @@ client = serpapi.Client(api_key=os.environ["SERPAPI_KEY"])
 
 GO_PRICE = 2200
 alerts = []
-
+lines = []
 RETURN_DATES = [
     "2027-01-18",
     "2027-01-19",
