@@ -127,7 +127,7 @@ for return_date in RETURN_DATES:
                 out_airline = " → ".join(leg.get("airline", "?") for leg in out_legs)
                 ret_airline = " → ".join(leg.get("airline", "?") for leg in ret_legs)
 
-                if isinstance(total_price, (int, float)) and total_price < PRICE_ALERT_THRESHOLD:
+                if isinstance(total_price, (int, float)) and total_price < GO_PRICE:
                     alerts.append(f"🚨 OH MY GOD WE NEED TO GO NOW — {return_date} outbound #{rank}: £{total_price}")
 
                 lines.append(f"\n   💰 Round-trip total: £{total_price}")
