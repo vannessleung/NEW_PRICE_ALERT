@@ -50,8 +50,6 @@ def format_flight_details(flight):
 
 all_trips = []  # for top 3 summary across all dates
 
-alert_banner = "\n".join(alerts) + "\n\n" if alerts else ""
-lines = [alert_banner + "LHR ⇄ HKG Flight Search\n"]
 
 for return_date in RETURN_DATES:
     lines.append("=" * 60)
@@ -168,6 +166,11 @@ else:
 lines.append("")
 
 # ── Write to file ─────────────────────────────────────────────────────
+
+# ── Write to file ─────────────────────────────────────────────────────
+alert_banner = "\n".join(alerts) + "\n\n" if alerts else ""
+lines.insert(0, alert_banner + "LHR ⇄ HKG Flight Search\n")
+
 summary = "\n".join(lines)
 print(summary)
 
