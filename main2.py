@@ -3,7 +3,7 @@ import os
 
 client = serpapi.Client(api_key=os.environ["SERPAPI_KEY"])
 
-GO_PRICE = 1700
+GO_PRICE = 2200
 alerts = []
 
 RETURN_DATES = [
