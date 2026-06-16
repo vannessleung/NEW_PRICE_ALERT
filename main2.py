@@ -3,6 +3,9 @@ import os
 
 client = serpapi.Client(api_key=os.environ["SERPAPI_KEY"])
 
+GO_PRICE = 1700
+alerts = []
+
 RETURN_DATES = [
     "2027-01-18",
     "2027-01-19",
@@ -13,12 +16,17 @@ RETURN_DATES = [
     "2027-01-24",
 ]
 
+def mins_to_hm(mins):
+    """Convert minutes to e.g. 14h 30m"""
+    if not isinstance(mins, (int, float)):
+        return str(mins)
+    h, m = divmod(int(mins), 60)
+    return f"{h}h {m}m"
+
 def format_flight_details(flight):
-    """Extract detailed info from a flight option."""
     legs = flight.get("flights", [])
     price = flight.get("price", "N/A")
     total_duration = flight.get("total_duration", "N/A")
-
     airlines = " → ".join(leg.get("airline", "?") for leg in legs)
 
     layovers = flight.get("layovers", [])
@@ -28,21 +36,22 @@ def format_flight_details(flight):
             airport = l.get("name", "?")
             code = l.get("id", "")
             duration = l.get("duration", "?")
-            layover_parts.append(f"{airport} ({code}), {duration} mins")
+            layover_parts.append(f"{airport} ({code}), {mins_to_hm(duration)}")
         layover_str = " | ".join(layover_parts)
     else:
         layover_str = "Direct (no layover)"
 
     lines = []
     lines.append(f"   Airlines:         {airlines}")
-    lines.append(f"   Total Price:      £{price}")
-    lines.append(f"   Total Duration:   {total_duration} mins")
+    lines.append(f"   Price:            £{price}")
+    lines.append(f"   Total Duration:   {mins_to_hm(total_duration)}")
     lines.append(f"   Layover(s):       {layover_str}")
     return "\n".join(lines)
 
-all_trips = []  # store (total_price, outbound_airline, return_airline, return_date) for summary
+all_trips = []  # for top 3 summary across all dates
 
-lines = ["✈️  LHR ⇄ HKG Flight Search (3 Adults, Christmas 2026)\n"]
+alert_banner = "\n".join(alerts) + "\n\n" if alerts else ""
+lines = [alert_banner + "LHR ⇄ HKG Flight Search\n"]
 
 for return_date in RETURN_DATES:
     lines.append("=" * 60)
@@ -72,62 +81,70 @@ for return_date in RETURN_DATES:
         lines.append("  ⚠️ No outbound flights found.\n")
         continue
 
-    # Sort by price, pick cheapest
     all_outbound.sort(key=lambda f: f.get("price", 999999))
-    cheapest_outbound = all_outbound[0]
-    dep_token = cheapest_outbound.get("departure_token")
 
-    lines.append("\n🛫 OUTBOUND — LHR → HKG (24 Dec 2026) [Cheapest]")
-    lines.append(format_flight_details(cheapest_outbound))
+    # ── Top 3 outbound flights ────────────────────────────────────
+    for rank, outbound_flight in enumerate(all_outbound[:3], 1):
+        dep_token = outbound_flight.get("departure_token")
+        out_price = outbound_flight.get("price", "N/A")
 
-    # ── STEP 2: Return search using departure_token ───────────────
-    if dep_token:
-        return_results = client.search({
-            "engine": "google_flights",
-            "departure_id": "LHR",
-            "arrival_id": "HKG",
-            "currency": "GBP",
-            "type": "1",
-            "gl": "uk",
-            "adults": "3",
-            "sort_by": "2",
-            "stops": "2",
-            "layover_duration": "0,360",
-            "outbound_date": "2026-12-24",
-            "return_date": return_date,
-            "departure_token": dep_token
-        })
+        lines.append(f"\n🛫 OUTBOUND #{rank} — LHR → HKG (24 Dec 2026)")
+        lines.append(format_flight_details(outbound_flight))
 
-        return_data = dict(return_results)
-        all_return = return_data.get("best_flights", []) + return_data.get("other_flights", [])
-
-        if all_return:
-            all_return.sort(key=lambda f: f.get("price", 999999))
-            cheapest_return = all_return[0]
-
-            lines.append(f"\n🛬 RETURN — HKG → LHR ({return_date}) [Cheapest paired return]")
-            lines.append(format_flight_details(cheapest_return))
-
-            # Store for top 3 summary
-            out_price = cheapest_outbound.get("price", 0)
-            ret_price = cheapest_return.get("price", 0)
-            total_price = out_price + ret_price if isinstance(out_price, (int, float)) and isinstance(ret_price, (int, float)) else "N/A"
-
-            out_legs = cheapest_outbound.get("flights", [])
-            ret_legs = cheapest_return.get("flights", [])
-            out_airline = " → ".join(leg.get("airline", "?") for leg in out_legs)
-            ret_airline = " → ".join(leg.get("airline", "?") for leg in ret_legs)
-
-            all_trips.append({
+        # ── STEP 2: Return search for this outbound ───────────────
+        if dep_token:
+            return_results = client.search({
+                "engine": "google_flights",
+                "departure_id": "LHR",
+                "arrival_id": "HKG",
+                "currency": "GBP",
+                "type": "1",
+                "gl": "uk",
+                "adults": "3",
+                "sort_by": "2",
+                "stops": "2",
+                "layover_duration": "0,360",
+                "outbound_date": "2026-12-24",
                 "return_date": return_date,
-                "total_price": total_price,
-                "out_airline": out_airline,
-                "ret_airline": ret_airline,
+                "departure_token": dep_token
             })
+
+            return_data = dict(return_results)
+            all_return = return_data.get("best_flights", []) + return_data.get("other_flights", [])
+
+            if all_return:
+                all_return.sort(key=lambda f: f.get("price", 999999))
+                cheapest_return = all_return[0]
+
+                lines.append(f"\n🛬 RETURN — HKG → LHR ({return_date}) [Cheapest paired]")
+                lines.append(format_flight_details(cheapest_return))
+
+                # The price returned already represents the full round trip
+                total_price = cheapest_return.get("price", "N/A")
+
+                out_legs = outbound_flight.get("flights", [])
+                ret_legs = cheapest_return.get("flights", [])
+                out_airline = " → ".join(leg.get("airline", "?") for leg in out_legs)
+                ret_airline = " → ".join(leg.get("airline", "?") for leg in ret_legs)
+
+                if isinstance(total_price, (int, float)) and total_price < PRICE_ALERT_THRESHOLD:
+                    alerts.append(f"🚨 OH MY GOD WE NEED TO GO NOW — {return_date} outbound #{rank}: £{total_price}")
+
+                lines.append(f"\n   💰 Round-trip total: £{total_price}")
+
+                all_trips.append({
+                    "return_date": return_date,
+                    "outbound_rank": rank,
+                    "total_price": total_price,
+                    "out_airline": out_airline,
+                    "ret_airline": ret_airline,
+                })
+            else:
+                lines.append("\n  ⚠️ No return flights found for this token.")
         else:
-            lines.append("\n  ⚠️ No return flights found for this token.\n")
-    else:
-        lines.append("\n  ⚠️ No departure_token — skipping return search.\n")
+            lines.append("\n  ⚠️ No departure_token — skipping return search.")
+
+        lines.append("")
 
     lines.append("")
 
@@ -143,7 +160,7 @@ if not valid_trips:
     lines.append("  No complete round-trip data available.")
 else:
     for i, trip in enumerate(valid_trips[:3], 1):
-        lines.append(f"\n  #{i} — Return date: {trip['return_date']}")
+        lines.append(f"\n  #{i} — Return date: {trip['return_date']} (Outbound option #{trip['outbound_rank']})")
         lines.append(f"       Total Price:    £{trip['total_price']}")
         lines.append(f"       Outbound:       {trip['out_airline']}")
         lines.append(f"       Return:         {trip['ret_airline']}")
